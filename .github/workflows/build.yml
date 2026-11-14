@@ -6,6 +6,9 @@ on:
     branches:
       - "**"
 
+env:
+  GEODE_VERSION: 5.11.2
+
 jobs:
   build:
     strategy:
@@ -21,22 +24,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Unpack zip (if present)
+      - name: Unpack newest zip (if present)
         run: |
           if ls *.zip >/dev/null 2>&1; then
-            zipfile="$(ls *.zip | head -n1)"
+            zipfile="$(ls -t *.zip | head -n1)"
+            echo "Using $zipfile"
             mkdir -p _unz
             unzip -o "$zipfile" -d _unz
             root="$(dirname "$(find _unz -name CMakeLists.txt | head -n1)")"
             cp -r "$root"/. .
             rm -rf _unz
           fi
-          ls -la
+
+      - name: Sync Geode version in mod.json
+        run: |
+          sed -i -E 's/"geode"[[:space:]]*:[[:space:]]*"[^"]*"/"geode": "${{ env.GEODE_VERSION }}"/' mod.json
+          cat mod.json
 
       - name: Build the mod
         uses: geode-sdk/build-geode-mod@main
         with:
-          sdk: v5.11.2
+          sdk: v${{ env.GEODE_VERSION }}
           combine: true
           target: ${{ matrix.config.target }}
 
