@@ -1,0 +1,55 @@
+name: Build Mod
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: Android32
+            target: Android32
+          - name: Android64
+            target: Android64
+    name: ${{ matrix.config.name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack zip (if present)
+        run: |
+          if ls *.zip >/dev/null 2>&1; then
+            zipfile="$(ls *.zip | head -n1)"
+            mkdir -p _unz
+            unzip -o "$zipfile" -d _unz
+            root="$(dirname "$(find _unz -name CMakeLists.txt | head -n1)")"
+            cp -r "$root"/. .
+            rm -rf _unz
+          fi
+          ls -la
+
+      - name: Build the mod
+        uses: geode-sdk/build-geode-mod@main
+        with:
+          bindings: geode-sdk/bindings
+          bindings-ref: main
+          combine: true
+          target: ${{ matrix.config.target }}
+
+  package:
+    name: Package builds
+    runs-on: ubuntu-latest
+    needs: ["build"]
+    steps:
+      - uses: geode-sdk/build-geode-mod/combine@main
+        id: build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Build Output
+          path: ${{ steps.build.outputs.build-output }}
